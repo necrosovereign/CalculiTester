@@ -11,9 +11,17 @@ data UnifierError a = NotInitialized a |
                       ConflictingArity a |
                       CyclicVar a
                       deriving(Eq, Show, Read)
+
 data Token a = VarT a |
                AtomT a |
                OpenP |
                CloseP |
                OperT a
                deriving(Eq,Show,Read)
+
+type Prec = Int
+
+data OperType = Infix Prec |
+                Prefix |
+                Postfix
+                deriving(Eq, Show, Read)
