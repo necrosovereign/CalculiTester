@@ -7,7 +7,9 @@ import TypeDef
 import Data.Char
 import Text.Parsec
 
-type ReadP = Parsec String ()
+type Fixity = String → OperType
+
+type ReadP = Parsec String Fixity
 
 -- token parsers
 -- a token is either varible, atom, operator or a parenthesis
@@ -22,7 +24,7 @@ isAtomInit c = isAlphaNum c && not (isUpper c)
 
 --predicate for operator starters
 isOperSymb :: Char → Bool
-isOperSymb c = not (isAlphaNum c || isDelim c)
+isOperSymb c = not (isAlphaNum c || isDelim c || c == ';')
 
 -- collects tail of a token
 tailMuncher :: ReadP String
@@ -45,12 +47,30 @@ varT = tokenT isUpper
 atomT :: ReadP String
 atomT = tokenT isAtomInit
 
--- parentheses tokens
+-- reserved symbols tokens
+resSymbT :: Char → ReadP ()
+resSymbT c = do
+  char c
+  spaces
+  return ()
+
+-- parentheses for grouping
 leftParenT :: ReadP ()
-leftParenT = char '(' *> pure ()
+leftParenT = resSymbT '('
 
 rightParenT :: ReadP ()
-rightParenT = char ')' *> pure ()
+rightParenT = resSymbT ')'
+
+-- brackets for lists
+leftBracketT :: ReadP ()
+leftBracketT = resSymbT '['
+
+rightBracketT :: ReadP ()
+rightBracketT = resSymbT ']'
+
+-- semicolon separates list elements
+semicolT :: ReadP ()
+semicolT = resSymbT ';'
 
 -- operator token
 operT :: ReadP String
@@ -70,14 +90,13 @@ tokenizer =
     eof
     pure ts
 
-type Fixity = String → OperType
 
--- parsers for operators of different fixity
 
 -- parses infix operator with fixity greater or equal to n
-infixOperT :: Fixity → Prec → ReadP (Maybe String)
-infixOperT fixity n =try $ (
+infixOperT :: Prec → ReadP (Maybe String)
+infixOperT n =try $ (
   do
+    fixity ← getState
     s ← operT
     case fixity s of
       Infix m | m >= n → pure (Just s)
@@ -86,23 +105,22 @@ infixOperT fixity n =try $ (
   <|>
   pure Nothing
 
-prefixOperT :: Fixity → ReadP String
-prefixOperT fixity = try $ do
+-- parsers for prefix and postfix operators
+prefixOperT :: ReadP String
+prefixOperT = try $ do
+  fixity ← getState
   s ← operT
   case fixity s of
     Prefix → pure s
     _ → fail ""
 
-postfixOperT :: Fixity → ReadP String
-postfixOperT fixity = try $ do
+postfixOperT :: ReadP String
+postfixOperT = try $ do
+  fixity ← getState
   s ← operT
   case fixity s of
     Postfix→ pure s
     _ → fail ""
-
--- full record parser
-recordP :: ReadP (Rec String)
-recordP = undefined
 
 -- parses a nucleus: variable, atom or a record in parenthesis
 nucleusP :: ReadP (Rec String)
@@ -113,11 +131,11 @@ nucleusP = choice
   ]
 
 -- parses a shell: a nucleus, surrounded by prefix and postfix operator
-shellP :: Fixity → ReadP (Rec String)
-shellP fixity = do
-  prefs ← many (prefixOperT fixity)
+shellP :: ReadP (Rec String)
+shellP = do
+  prefs ← many prefixOperT
   nucl ← nucleusP
-  postf ← many (postfixOperT fixity)
+  postf ← many postfixOperT
   pure $
           foldr (\op x → Atom op [x])
           (foldl (\x op → Atom op [x]) nucl postf)
@@ -125,4 +143,11 @@ shellP fixity = do
 
 -- parses a record without infix operators
 simpleRecordP :: ReadP (Rec String)
-simpleRecordP = undefined
+simpleRecordP = do
+  constr ← atomT
+  args ← many $ shellP
+  pure $ Atom constr args
+  
+-- full record parser
+recordP :: ReadP (Rec String)
+recordP = undefined
