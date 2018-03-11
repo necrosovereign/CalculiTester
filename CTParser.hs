@@ -5,7 +5,9 @@ module CTParser where
 
 import TypeDef
 import Data.Char
-import Text.ParserCombinators.ReadP
+import Text.Parsec
+
+type ReadP = Parsec String ()
 
 -- token parsers
 -- a token is either varible, atom, operator or a parenthesis
@@ -24,16 +26,15 @@ isOperSymb c = not (isAlphaNum c || isDelim c)
 
 -- collects tail of a token
 tailMuncher :: ReadP String
-tailMuncher = munch $ not . isDelim
+tailMuncher = many $ satisfy $ not . isDelim
 
 -- parses token using the predicate on the initial symbol
 tokenT :: (Char → Bool) → ReadP String
 tokenT p = do
-  skipSpaces
   -- first character satisfies the predicate
   init ← satisfy p
   rest ← tailMuncher
-  skipSpaces
+  spaces
   pure $ init : rest
 
 -- variable token
@@ -59,6 +60,7 @@ operT =
 tokenizer :: ReadP [Token String]
 tokenizer =
   do
+    spaces
     ts ← many $ choice
       [ fmap VarT varT
       , fmap AtomT atomT
@@ -68,36 +70,35 @@ tokenizer =
     eof
     pure ts
 
--- tryP p tries p and returns Just when it succeeds and Nothing when it fails
-tryP :: ReadP a → ReadP (Maybe a)
-tryP p = fmap Just p <++ pure Nothing
-
 type Fixity = String → OperType
 
 -- parsers for operators of different fixity
 
 -- parses infix operator with fixity greater or equal to n
 infixOperT :: Fixity → Prec → ReadP (Maybe String)
-infixOperT fixity n =
-  tryP $ do
-  s ← operT
-  case fixity s of
-    Infix m | m >= n → pure s
-    _ → pfail
+infixOperT fixity n =try $ (
+  do
+    s ← operT
+    case fixity s of
+      Infix m | m >= n → pure (Just s)
+      _ → fail ""
+  )
+  <|>
+  pure Nothing
 
 prefixOperT :: Fixity → ReadP String
-prefixOperT fixity = do
+prefixOperT fixity = try $ do
   s ← operT
   case fixity s of
     Prefix → pure s
-    _ → pfail
+    _ → fail ""
 
 postfixOperT :: Fixity → ReadP String
-postfixOperT fixity = do
+postfixOperT fixity = try $ do
   s ← operT
   case fixity s of
     Postfix→ pure s
-    _ → pfail
+    _ → fail ""
 
 -- full record parser
 recordP :: ReadP (Rec String)
