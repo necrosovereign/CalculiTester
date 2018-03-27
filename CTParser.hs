@@ -7,7 +7,8 @@ import TypeDef
 import CTTokenizer
 import Data.Char
 import Text.Parsec
-
+import Data.Maybe
+import Data.Either
 
 type Fixity = String → OperType
 
@@ -38,7 +39,7 @@ atomT = tokenT isAtom <?> "atomT" where
   isAtom _ = Nothing
 
 -- reserved symbols tokens
-resSymbT :: Char → ReadP ()
+resSymbT :: Char → ReadP Char
 resSymbT c = tokenT isSymb <?> "resSymbT" where
   isSymb (SymbolT s) | c == s = Just c
   isSymb _ = Nothing
@@ -63,7 +64,7 @@ prefixOperT = do
           Prefix → Just s
           _ → Nothing
         _ → Nothing
-  tokemT isPrefix <?> "prefixOperT"
+  tokenT isPrefix <?> "prefixOperT"
         
 
 postfixOperT :: ReadP String
@@ -71,7 +72,7 @@ postfixOperT = do
   fixity ← getState
   let isPostfix t = case t of
         OperT s → case fixity s of
-          Prefix → Just s
+          Postfix → Just s
           _ → Nothing
         _ → Nothing
   tokenT isPostfix <?> "postfixOperT"
@@ -82,7 +83,7 @@ nucleusP = choice
   [ fmap Var varT
   , fmap (\x → Atom x []) atomT
   , listP
-  , between leftParenT rightParenT recordP
+  , between (resSymbT '(') (resSymbT ')') recordP
   ]
   <?> "nucleusP"
 
@@ -108,26 +109,31 @@ simpleRecordP =
 
 listP :: ReadP (Rec String)
 listP = do
-  elems ← between leftBracketT rightBracketT $
-    recordP `sepBy` semicolT
+  elems ← between (resSymbT '[') (resSymbT ']') $
+    recordP `sepBy` resSymbT ';'
   pure $ foldr (\x y → Atom "#" [x, y]) (Atom "[]" []) elems
 
 -- parses expression on precedence level n
 recordPrecP :: Prec → ReadP (Rec String)
-recordPrecP n = do
-  left ← simpleRecordP
-  let go left = do
-        oper ← infixOperT n
-        case oper of
-          Nothing → pure left
-          Just oper → do
-            fixity ← getState
-            right ← case fixity oper of
-              InfixL m → recordPrecP (m + 1)
-              InfixR m → recordPrecP m
-            go $ Atom oper [left, right]
-  go left
+recordPrecP n =
+  flip ($) <$> simpleRecordP <*> go <?> "recordPrepP " ++ show n where
+  go = (do
+           (assoc, m, oper) ← infixOperT n
+           right ← case assoc of
+             ALeft → recordPrecP (m + 1)
+             ARight → recordPrecP m
+           f ← go
+           pure (\left → f $ Atom oper [left, right])
+       ) <|>
+       pure id
 
 -- full record parser
 recordP :: ReadP (Rec String)
 recordP = recordPrecP 0
+
+testFun :: ReadP a → [(String, OperType)] → String → Either ParseError a
+testFun p fixity s =
+  let
+    ts = either (const $ error "not Right") id $ tokenizer s
+    fixity' oper = fromJust $ lookup oper fixity
+  in runParser p fixity' "" ts
