@@ -23,6 +23,8 @@ data Token a = VarT a |
                AtomT a |
                OperT a |
                SymbolT Char
+               InfixT | PrefixT | PostfixT |
+               EmptyLine
                deriving(Eq,Show,Read)
 
 type Prec = Int

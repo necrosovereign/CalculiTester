@@ -5,9 +5,10 @@ module CTTokenizer (tokenizer) where
 
 import TypeDef
 import Data.Char
+import Data.Text.Lazy
 import Text.Parsec
 
-type ReadP = Parsec String ()
+type ReadP = Parsec Text ()
 
 -- token parsers
 -- a token is either varible, atom, operator or a parenthesis
@@ -59,7 +60,7 @@ operT :: ReadP String
 operT =
   tokenT isOperSymb 
 
-tokenizer :: String → Either CTParserError [(SourcePos, Token String)] 
+tokenizer :: Text → Either CTParserError [(SourcePos, Token String)] 
 tokenizer s = case parse tokenizer' "" s of
   Right ts → Right ts
   Left err → Left $ TokenizerError $ sourceColumn (errorPos err)

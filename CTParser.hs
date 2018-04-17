@@ -9,6 +9,7 @@ import Data.Char
 import Text.Parsec
 import Data.Maybe
 import Data.Either
+import Data.Text.Lazy (Text)
 import qualified Data.Map as M
 
 type ReadP = Parsec [(SourcePos, Token String)] Fixity
@@ -130,7 +131,7 @@ recordPrecP n =
 recordP :: ReadP (Rec String)
 recordP = recordPrecP 0
 
-recParser :: Fixity → String → Either CTParserError (Rec String)
+recParser :: Fixity → Text → Either CTParserError (Rec String)
 recParser fixity s = do
   ts ← tokenizer s
   either (Left . CTParserError) Right $
