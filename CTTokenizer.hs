@@ -4,7 +4,7 @@
 module CTTokenizer (tokenizer) where
 
 import TypeDef
-import Data.Char
+import Data.Char 
 import Data.Text.Lazy
 import Text.Parsec
 
