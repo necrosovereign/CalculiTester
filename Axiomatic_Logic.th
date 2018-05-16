@@ -1,0 +1,19 @@
+prefix:
+~
+
+infix:
+r ->
+
+--ax1
+P -> Q -> P
+
+--ax2
+(P -> Q -> R) -> (P -> Q) -> (P -> R)
+
+--ax3
+(~ P -> ~ Q) -> (Q -> P)
+
+--mp
+P -> Q
+P
+Q

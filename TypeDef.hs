@@ -3,6 +3,7 @@
 module TypeDef where
 
 import Text.Parsec.Error (ParseError)
+import Data.Text.Lazy (Text)
 import Data.Map (Map)
 
 data Rec a = Var a |
@@ -19,6 +20,11 @@ data CTParserError = TokenizerError Int |
                      CTParserError ParseError
                    deriving(Eq, Show)
 
+type LineNumber = Int
+
+data FileReaderError = RuleFieldError LineNumber CTParserError
+                       deriving(Eq, Show)
+
 data Token a = VarT a |
                AtomT a |
                OperT a |
@@ -34,10 +40,11 @@ data OperType = Infix Assoc Prec |
                 Postfix
                 deriving(Eq, Show, Read)
 
-type Fixity = Map String OperType
+type Fixity = Map Text OperType
 
-type RuleName = String
+type RuleName = Text
 
 data Rule a = Rule (Rec a) [Rec a]
+              deriving(Eq, Show, Read)
 
 type Theory a = (Fixity, Map RuleName (Rule a))

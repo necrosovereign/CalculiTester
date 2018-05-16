@@ -5,7 +5,8 @@ module CTTokenizer (tokenizer) where
 
 import TypeDef
 import Data.Char 
-import Data.Text.Lazy
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 import Text.Parsec
 
 type ReadP = Parsec Text ()
@@ -28,24 +29,24 @@ isOperSymb :: Char → Bool
 isOperSymb c = not (isAlphaNum c || isDelim c)
 
 -- collects tail of a token
-tailMuncher :: ReadP String
-tailMuncher = many $ satisfy $ not . isDelim
+tailMuncher :: ReadP Text
+tailMuncher = fmap T.pack . many . satisfy $ not . isDelim
 
 -- parses token using the predicate on the initial symbol
-tokenT :: (Char → Bool) → ReadP String
+tokenT :: (Char → Bool) → ReadP Text
 tokenT p = do
   -- first character satisfies the predicate
   init ← satisfy p
   rest ← tailMuncher
   spaces
-  pure $ init : rest
+  pure $ T.cons init rest
 
 -- variable token
-varT :: ReadP String
+varT :: ReadP Text
 varT = tokenT isUpper 
 
 -- atom token
-atomT :: ReadP String
+atomT :: ReadP Text
 atomT = tokenT isAtomInit 
 
 -- reserved symbols tokens
@@ -56,11 +57,11 @@ resSymbT = do
   pure c
 
 -- operator token
-operT :: ReadP String
+operT :: ReadP Text
 operT =
   tokenT isOperSymb 
 
-tokenizer :: Text → Either CTParserError [(SourcePos, Token String)] 
+tokenizer :: Text → Either CTParserError [(SourcePos, Token Text)] 
 tokenizer s = case parse tokenizer' "" s of
   Right ts → Right ts
   Left err → Left $ TokenizerError $ sourceColumn (errorPos err)

@@ -1,4 +1,5 @@
 {-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ApplicativeDo #-}
 
 module CTParser (recParser) where
@@ -10,30 +11,31 @@ import Text.Parsec
 import Data.Maybe
 import Data.Either
 import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 import qualified Data.Map as M
 
-type ReadP = Parsec [(SourcePos, Token String)] Fixity
+type ReadP = Parsec [(SourcePos, Token Text)] Fixity
 
 -- token parsers
 -- a token is either varible, atom, operator or a parenthesis
 
 -- basic token parser
-tokenT :: (Token String → Maybe a) → ReadP a
+tokenT :: (Token Text → Maybe a) → ReadP a
 tokenT p = token showTok fst (p . snd) where
-  showTok t = case snd t of
+  showTok t = T.unpack $ case snd t of
     VarT s → s
     AtomT s → s
-    SymbolT c → [c]
+    SymbolT c → T.singleton c
     OperT s → s
 
 -- variable token
-varT :: ReadP String
+varT :: ReadP Text
 varT = tokenT isVar <?> "variable" where
   isVar (VarT s) = Just s
   isVar _ = Nothing
 
 -- atom token
-atomT :: ReadP String
+atomT :: ReadP Text
 atomT = tokenT isAtom <?> "atom" where
   isAtom (AtomT s) = Just s
   isAtom _ = Nothing
@@ -45,7 +47,7 @@ resSymbT c = tokenT isSymb <?> [c] where
   isSymb _ = Nothing
 
 -- parses infix operator with fixity greater or equal to n
-infixOperT :: Prec → ReadP (Assoc, Prec, String)
+infixOperT :: Prec → ReadP (Assoc, Prec, Text)
 infixOperT n = do
   fixity ← getState
   let isInfix t = case t of
@@ -56,7 +58,7 @@ infixOperT n = do
   tokenT isInfix <?> "operator with precedence at least " ++ show n
 
 -- parsers for prefix and postfix operators
-prefixOperT :: ReadP String
+prefixOperT :: ReadP Text
 prefixOperT = do
   fixity ← getState
   let isPrefix t = case t of
@@ -67,7 +69,7 @@ prefixOperT = do
   tokenT isPrefix <?> "prefix operator"
         
 
-postfixOperT :: ReadP String
+postfixOperT :: ReadP Text
 postfixOperT = do
   fixity ← getState
   let isPostfix t = case t of
@@ -78,7 +80,7 @@ postfixOperT = do
   tokenT isPostfix <?> "postfix operator"
 
 -- parses a nucleus: variable, atom or a record in parenthesis
-nucleusP :: ReadP (Rec String)
+nucleusP :: ReadP (Rec Text)
 nucleusP = choice
   [ fmap Var varT
   , fmap (\x → Atom x []) atomT
@@ -88,7 +90,7 @@ nucleusP = choice
   <?> "nucleus"
 
 -- parses a shell: a nucleus, surrounded by prefix and postfix operator
-shellP :: ReadP (Rec String)
+shellP :: ReadP (Rec Text)
 shellP = do
   prefs ← many prefixOperT
   nucl ← nucleusP
@@ -99,7 +101,7 @@ shellP = do
     prefs
 
 -- parses a record without infix operators
-simpleRecordP :: ReadP (Rec String)
+simpleRecordP :: ReadP (Rec Text)
 simpleRecordP =
   Atom <$> atomT <*> (many shellP)
   <|>
@@ -107,14 +109,14 @@ simpleRecordP =
   <?> "simple record"
   
 
-listP :: ReadP (Rec String)
+listP :: ReadP (Rec Text)
 listP = do
   elems ← between (resSymbT '[') (resSymbT ']') $
     recordP `sepBy` resSymbT ';'
   pure $ foldr (\x y → Atom "#" [x, y]) (Atom "[]" []) elems
 
 -- parses expression on precedence level n
-recordPrecP :: Prec → ReadP (Rec String)
+recordPrecP :: Prec → ReadP (Rec Text)
 recordPrecP n =
   flip ($) <$> simpleRecordP <*> go <?> "recordPrepP " ++ show n where
   go = (do
@@ -128,10 +130,10 @@ recordPrecP n =
        pure id
 
 -- full record parser
-recordP :: ReadP (Rec String)
+recordP :: ReadP (Rec Text)
 recordP = recordPrecP 0
 
-recParser :: Fixity → Text → Either CTParserError (Rec String)
+recParser :: Fixity → Text → Either CTParserError (Rec Text)
 recParser fixity s = do
   ts ← tokenizer s
   either (Left . CTParserError) Right $
