@@ -10,6 +10,10 @@ data Rec a = Var a |
              Atom a [Rec a]
              deriving(Eq, Show, Read)
 
+data MemCell a = Val (Rec a) | EqClass Int deriving(Eq, Show, Read)
+
+type Store a = Map a (MemCell a)
+
 data UnifierError a = NotInitialized a |
                       IncompabitibleAtoms a a |
                       ConflictingArity a |

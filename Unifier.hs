@@ -1,6 +1,6 @@
 {-# LANGUAGE UnicodeSyntax #-}
 
-module Unifier where
+module Unifier (eval, unify) where
 
 import TypeDef
 import qualified Data.Map as M
@@ -8,10 +8,6 @@ import Data.Monoid (First(..))
 import Data.List
 import Control.Monad.Except
 import Control.Monad.State
-
-data MemCell a = Val (Rec a) | EqClass Int deriving(Eq, Show, Read)
-
-type Store a = M.Map a (MemCell a)
 
 -- unite equivalency classes m n in store
 uniteEqClasses :: Int → Int → Store a → Store a
@@ -138,7 +134,7 @@ eval store (Var var) =
     Just (Val v) → eval store v
 eval store (Atom a vs) = Atom a $ fmap (eval store) vs
 
-unify :: (Show a, Ord a) ⇒ Rec a → Rec a → Either (UnifierError a) (Rec a)
+unify :: (Show a, Ord a) ⇒ Rec a → Rec a → Either (UnifierError a) (Store a)
 unify x y =
   let
     vars = listVars x `union` listVars y
@@ -148,6 +144,6 @@ unify x y =
     do
       store ← eitherStore
       case findCycle store of
-        Nothing → return $ eval store x
+        Nothing → return store
         Just var → throwError $ CyclicVar var
   
