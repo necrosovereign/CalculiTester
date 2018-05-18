@@ -1,4 +1,5 @@
 {-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 module TypeDef where
 
@@ -8,9 +9,9 @@ import Data.Map (Map)
 
 data Rec a = Var a |
              Atom a [Rec a]
-             deriving(Eq, Show, Read)
+             deriving(Eq, Show, Read, Functor)
 
-data MemCell a = Val (Rec a) | EqClass Int deriving(Eq, Show, Read)
+data MemCell a = Val (Rec a) | EqClass Int deriving(Eq, Show, Read, Functor)
 
 type Store a = Map a (MemCell a)
 
@@ -18,7 +19,7 @@ data UnifierError a = NotInitialized a |
                       IncompabitibleAtoms a a |
                       ConflictingArity a |
                       CyclicVar a
-                      deriving(Eq, Show, Read)
+                      deriving(Eq, Show, Read, Functor)
 
 data CTParserError = TokenizerError Int |
                      CTParserError ParseError
@@ -49,6 +50,6 @@ type Fixity = Map Text OperType
 type RuleName = Text
 
 data Rule a = Rule (Rec a) [Rec a]
-              deriving(Eq, Show, Read)
+              deriving(Eq, Show, Read, Functor)
 
 type Theory a = (Fixity, Map RuleName (Rule a))

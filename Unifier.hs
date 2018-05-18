@@ -1,6 +1,6 @@
 {-# LANGUAGE UnicodeSyntax #-}
 
-module Unifier (eval, unify) where
+module Unifier (eval, unify, listVars) where
 
 import TypeDef
 import qualified Data.Map as M
@@ -52,7 +52,7 @@ bindValM :: Int → Rec a → UnifMonad a ()
 bindValM n v = modifyStore (bindVal n v)
 
 -- lookup variable x in Store
-lookUpStore :: (Show a, Ord a) ⇒ a → UnifMonad a (MemCell a)
+lookUpStore :: (Ord a) ⇒ a → UnifMonad a (MemCell a)
 lookUpStore x = do
   st ← fmap fst get
   case M.lookup x st of
@@ -60,7 +60,7 @@ lookUpStore x = do
     Just v → return v
 
 -- unify records
-unifyStepR :: (Show a, Ord a) ⇒ Rec a → Rec a → UnifMonad a ()
+unifyStepR :: (Ord a) ⇒ Rec a → Rec a → UnifMonad a ()
 -- two variables are unified by unifying memory cells
 unifyStepR (Var a0) (Var a1) =
   do
@@ -86,7 +86,7 @@ unifyStepR a1@(Atom i vs1) a2@(Atom j vs2) =
        else sequence_ $ zipWith unifyStepR vs1 vs2
 
 -- unify memcells
-unifyStepMC :: (Show a, Ord a) ⇒ MemCell a → MemCell a → UnifMonad a ()
+unifyStepMC :: (Ord a) ⇒ MemCell a → MemCell a → UnifMonad a ()
 -- classes are unified by union
 unifyStepMC (EqClass i) (EqClass j) =
   uniteEqClassesM i j
@@ -134,7 +134,7 @@ eval store (Var var) =
     Just (Val v) → eval store v
 eval store (Atom a vs) = Atom a $ fmap (eval store) vs
 
-unify :: (Show a, Ord a) ⇒ Rec a → Rec a → Either (UnifierError a) (Store a)
+unify :: (Ord a) ⇒ Rec a → Rec a → Either (UnifierError a) (Store a)
 unify x y =
   let
     vars = listVars x `union` listVars y
