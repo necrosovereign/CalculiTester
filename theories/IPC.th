@@ -1,0 +1,68 @@
+name: IPC
+
+prefix:
+~
+
+infix:
+|-
+r ->
+&&
+||
+
+--hyp_head
+(A # T) |- A
+
+--hyp_tail
+T |- A
+(H # T) |- A
+
+--I~
+G |- P -> false
+G |- ~ P
+
+--E~
+G |- ~ P
+G |- P -> false
+
+--E_false
+G |- false
+G |- C
+
+--I->
+(A # G) |- B
+G |- A -> B
+
+--E->
+G |- A -> B
+G |- A
+G |- B
+
+--I&&
+G |- A
+G |- B
+G |- A && B
+
+--E&&L
+G |- A && B
+G |- A
+
+--E&&R
+G |- A && B
+G |- B
+
+--I||L
+G |- A
+G |- A || B
+
+--I||R
+G |- B
+G |- A || B
+
+--E||
+G |- A || B
+(A # G) |- C
+(B # G) |- C
+G |- C
+
+--Itrue
+G |- true
